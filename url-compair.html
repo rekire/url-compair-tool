@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="ie=edge">
+<title>Url compair tool</title>
+<!--link rel="stylesheet" href="style.css"-->
+<style type="text/css">
+textarea {
+    width: 90vw;
+    height: 40vh;
+}
+</style>
+<script type="text/javascript">
+'use strict';
+function update(input) {
+    const urls = input.trim()
+    .split('\n')
+    .map((url)=>{
+        try {
+            return new URL(url)
+        } catch(ex) {
+            return "Syntax error in " + url
+        }
+    })
+
+    const green='#90ee90'
+    const red='#e72512'
+
+    const searchParams = {}
+    const counters = {
+        hostname: {},
+        password: {},
+        pathname: {},
+        protocol: {},
+        port: {},
+        username: {},
+    }
+    urls.forEach((url)=>{
+        if(url instanceof URL) {
+            counters['hostname'][url.hostname]=(counters['hostname'][url.hostname]||0)+1
+            counters['password'][url.password]=(counters['password'][url.password]||0)+1
+            counters['pathname'][url.pathname]=(counters['pathname'][url.pathname]||0)+1
+            counters['protocol'][url.protocol]=(counters['protocol'][url.protocol]||0)+1
+            counters['port'][url.port]=(counters['port'][url.port]||0)+1
+            counters['username'][url.username]=(counters['username'][url.username]||0)+1;
+            [...url.searchParams.keys()].forEach((param) => {
+                searchParams[param]=searchParams[param]||new Map()
+                let count=searchParams[param].get(url.searchParams.get(param))||0
+                searchParams[param].set(url.searchParams.get(param),count+1)
+            })
+        }
+    })
+    const mostCommonParts={
+        hostname: '',
+        password: '',
+        pathname: '',
+        protocol: '',
+        port: '',
+        username: '',
+        longestHostname: 0,
+        longestPassword: 0,
+        longestPathname: 0,
+        longestProtocol: 0,
+        longestPort: 0,
+        longestUsername: 0,
+    };
+    Object.keys(counters).forEach(key => {
+        Object.keys(counters[key]).forEach(value=>{
+            if(counters[key][value]>urls.length / 2) {
+                mostCommonParts[key]=value
+            }
+            const longestKey='longest' + key[0].toUpperCase() + key.substring(1)
+            mostCommonParts[longestKey] = Math.max(mostCommonParts[longestKey], value.length)
+        })
+    })
+
+    const output=urls.map((url)=>{
+        let parts = ""
+        parts += url.protocol != mostCommonParts.protocol ? `<span style="color:${red}">${url.protocol}</span>` : url.protocol
+        parts += ' '.repeat(mostCommonParts.longestProtocol - url.protocol.length)
+        parts += "//"
+        parts += url.username != mostCommonParts.username ? `<span style="color:${red}">${url.username}</span>` : url.username
+        parts += ' '.repeat(mostCommonParts.longestUsername - url.username.length)
+        parts += mostCommonParts.longestPassword == 0 ? '' : (url.password.length>0 ? ':' : ' ')
+        parts += url.password != mostCommonParts.password ? `<span style="color:${red}">${url.password}</span>` : url.password
+        parts += ' '.repeat(mostCommonParts.longestPassword - url.password.length)
+        parts += mostCommonParts.longestPassword + mostCommonParts.longestUsername == 0 ? '' : (url.password.length+url.username.length>0 ? '@' : ' ')
+
+        parts += url.hostname != mostCommonParts.hostname ? `<span style="color:${red}">${url.hostname}</span>` : url.hostname
+        parts += ' '.repeat(mostCommonParts.longestHostname - url.hostname.length)
+        
+        parts += url.port != mostCommonParts.port ? `<span style="color:${red}">:${url.port}</span>` : (url.port?':'+url.port:'')
+        parts += ' '.repeat(mostCommonParts.longestPort - url.port.length)
+        parts += mostCommonParts.longestPort == 0 ? '' : (url.port.length>0 ? '' : ' ')
+        
+        parts += url.pathname != mostCommonParts.pathname ? `<span style="color:${red}">${url.pathname}</span>` : url.pathname
+        parts += ' '.repeat(mostCommonParts.longestPathname - url.pathname.length)
+
+        let i=0
+        Object.keys(searchParams).sort().forEach((param) => {
+            let longestValue = 0;
+                [...searchParams[param].keys()].forEach(value => {
+                    longestValue = Math.max(longestValue, value.length)
+                });
+                console.log([...searchParams[param].keys()])
+            if(url.searchParams.get(param) != null) {
+                parts += i++==0 ? '?' : '&'
+                const encodedValue=encodeURIComponent(url.searchParams.get(param))
+                parts += `${param}=${encodedValue}`
+                parts += ' '.repeat(longestValue - encodedValue.length)
+            } else {
+                parts += ' '.repeat(longestValue + param.length + 2)
+            }
+        })
+        
+        return parts
+    })
+
+    document.getElementById('output').innerHTML = output.join('\n')
+}
+</script>
+</head>
+<body onload="update(document.getElementsByTagName('textarea')[0].value)">
+<textarea onchange="update(this.value)" onkeyup="update(this.value)">
+http://foo:bar@example.com:123/path?search=42&aaa=bbb
+https://example.com:123/path?bb=0&search=2&aaa=bb
+https://blah@example.com/path?bb=5&search=21&aaa=bb
+https://example.com/path?cc=123&search=0&aaa=asdf
+</textarea>
+<pre id="output"></pre>
+</body>
+</html>
